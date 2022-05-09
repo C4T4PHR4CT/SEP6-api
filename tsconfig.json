@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "es2018",
+        "module": "commonjs",
+        "lib": ["dom","es6", "es2018", "es2019"],
+        "outDir": "dist",
+        "rootDir": "src",
+        "strict": true,
+        "strictFunctionTypes": false,
+        "strictPropertyInitialization": false,
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "paths": {
+            "src/*": ["./src/*"]
+        },
+        "plugins": [{ "transform": "@zerollup/ts-transform-paths" }],
+        "experimentalDecorators": true
+    },
+    "exclude": ["tests", "node_modules"],
+    "include": ["src/**/*.ts"]
+}
