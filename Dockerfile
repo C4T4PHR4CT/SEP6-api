@@ -22,7 +22,7 @@ FROM node:12.13.0-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV IP=127.0.0.1
+ENV IP=0.0.0.0
 
 COPY package*.json ./
 RUN npm ci --quiet --only=production
