@@ -47,10 +47,7 @@ testDbConnection();
 
 app.get("/test", async function (_req, res) {
     res.status(200);
-    return {
-        success: false,
-        message: "ok",
-    };
+    res.send("ok");
 });
 
 backend.listen(Number(PORT), IP);
