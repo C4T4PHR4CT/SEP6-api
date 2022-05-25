@@ -4,7 +4,9 @@ import knex from "knex";
 import { env } from "./config";
 import logger from "./logger";
 import bodyParser from "body-parser";
-//
+import { nullOrEmpty } from "./common";
+import bcrypt from "bcrypt";
+
 const { PORT, IP } = env;
 
 process.on("uncaughtException", (err) => {
@@ -48,6 +50,33 @@ testDbConnection();
 app.get("/test", async function (_req, res) {
     res.status(200);
     res.send("ok");
+});
+
+app.post("/register", async function (req, res) {
+    try {
+        const user = req.body;
+        if (nullOrEmpty(user.username)) {
+            res.status(400);
+            res.send("username can't be empty");
+        } else if (nullOrEmpty(user.password)) {
+            res.status(400);
+            res.send("password can't be empty");
+        } else if (nullOrEmpty(user.email)) {
+            res.status(400);
+            res.send("email can't be empty");
+        } else if ((await db.raw("SELECT username FROM users WHERE username = ?", [user.username]))[0].length > 0) {
+            res.status(409);
+            res.send("username taken");
+        } else {
+            await db.raw("INSERT INTO users (username, password_hashed, email, favourites) VALUES (?, ?, ?, ?)", [user.username, bcrypt.hashSync(user.password, 10), user.email, "[]"]);
+            res.status(200);
+            res.send("ok");
+        }
+    } catch (e: any) {
+        logger.log("ERROR", "POST /register", e);
+        res.status(500);
+        res.send("internal server error");
+    }
 });
 
 backend.listen(Number(PORT), IP);
