@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import http from "http";
 import knex from "knex";
 import { env } from "./config";
@@ -48,113 +48,94 @@ const testDbConnection = async () => {
 };
 testDbConnection();
 
-app.get("/test", async function (_req, res) {
-    res.status(200);
-    res.send("ok");
-});
-
-app.post("/api/register", async function (req, res) {
+const errorHandler = function (req: Request, res: Response, next: NextFunction) {
     try {
-        const user = req.body;
-        if (nullOrEmpty(user.username)) {
-            res.status(400);
-            res.send({message:"username can't be empty",success:false});
-        } else if (nullOrEmpty(user.password)) {
-            res.status(400);
-            res.send({message:"password can't be empty",success:false});
-        } else if (nullOrEmpty(user.email)) {
-            res.status(400);
-            res.send({message:"email can't be empty",success:false});
-        } else if ((await db.raw("SELECT username FROM users WHERE username = ?", [user.username]))[0].length > 0) {
-            res.status(409);
-            res.send({message:"username taken",success:false});
-        } else {
-            await db.raw("INSERT INTO users (username, password_hashed, email, favourites) VALUES (?, ?, ?, ?)", [user.username, bcrypt.hashSync(user.password, 10), user.email, "[]"]);
-            res.status(200);
-            res.send({message:"ok",success:true});
-        }
+        next();
     } catch (e: any) {
         logger.log("ERROR", "POST /register", e);
         res.status(500);
         res.send({message:"internal server error",success:false});
     }
+}
+app.use(errorHandler);
+
+const auth = async function (req: Request, res: Response, next: NextFunction) {
+    const nonSecurePaths = ["/api/register", "/api/login"];
+    if (nonSecurePaths.includes(req.path))
+        return next();
+  
+    const tmp = req.headers.Authorization ?? req.headers.authorization ?? "";
+    const token = (Array.isArray(tmp) ? tmp[0] : tmp).split(" ");
+    if (token.length < 2 || token[0] !== "Bearer") {
+        res.status(401);
+        res.send({message:"invalid bearer token",success:false});
+    } else {
+        try {
+            const claims = await verifyToken(token[1]);
+            (req as any).claims = claims;
+            next();
+        } catch (_) {
+            res.status(401);
+            res.send({message:"failed to verify token",success:false});
+        }
+    }
+}
+app.use(auth);
+
+app.post("/api/register", async function (req, res) {
+    const user = req.body;
+    if (nullOrEmpty(user.username)) {
+        res.status(400);
+        res.send({message:"username can't be empty",success:false});
+    } else if (nullOrEmpty(user.password)) {
+        res.status(400);
+        res.send({message:"password can't be empty",success:false});
+    } else if (nullOrEmpty(user.email)) {
+        res.status(400);
+        res.send({message:"email can't be empty",success:false});
+    } else if ((await db.raw("SELECT username FROM users WHERE username = ?", [user.username]))[0].length > 0) {
+        res.status(409);
+        res.send({message:"username taken",success:false});
+    } else {
+        await db.raw("INSERT INTO users (username, password_hashed, email, favourites) VALUES (?, ?, ?, ?)", [user.username, bcrypt.hashSync(user.password, 10), user.email, "[]"]);
+        res.status(200);
+        res.send({message:"ok",success:true});
+    }
 });
 
 app.post("/api/login", async function (req, res) {
-    try {
-        const user = req.body;
-        if (nullOrEmpty(user.username)) {
-            res.status(400);
-            res.send({message:"username can't be empty",success:false});
-        } else if (nullOrEmpty(user.password)) {
-            res.status(400);
-            res.send({message:"password can't be empty",success:false});
-        } else if (!bcrypt.compareSync(user.password, (await db.raw("SELECT password_hashed FROM users WHERE username = ?", [user.username]))[0][0]?.password_hashed ?? "")) {
-            res.status(401);
-            res.send({message:"incorrect username or password",success:false});
-        } else {
-            const dbUser = (await db.raw("SELECT username, email FROM users WHERE username = ?", [user.username]))[0].map((v: any) => {return {username: v.username, email: v.email};})[0];
-            const token = await signToken(dbUser, user.username);
-            res.status(200);
-            res.send({token, user: dbUser});
-        }
-    } catch (e: any) {
-        logger.log("ERROR", "POST /login", e);
-        res.status(500);
-        res.send({message:"internal server error",success:false});
+    const user = req.body;
+    if (nullOrEmpty(user.username)) {
+        res.status(400);
+        res.send({message:"username can't be empty",success:false});
+    } else if (nullOrEmpty(user.password)) {
+        res.status(400);
+        res.send({message:"password can't be empty",success:false});
+    } else if (!bcrypt.compareSync(user.password, (await db.raw("SELECT password_hashed FROM users WHERE username = ?", [user.username]))[0][0]?.password_hashed ?? "")) {
+        res.status(401);
+        res.send({message:"incorrect username or password",success:false});
+    } else {
+        const dbUser = (await db.raw("SELECT username, email FROM users WHERE username = ?", [user.username]))[0].map((v: any) => {return {username: v.username, email: v.email};})[0];
+        const token = await signToken(dbUser, user.username);
+        res.status(200);
+        res.send({token, user: dbUser});
     }
 });
 
 app.post("/api/token/confirm", async function (req, res) {
-    try {
-        const tmp = req.headers.Authorization ?? req.headers.authorization ?? "";
-        const token = (Array.isArray(tmp) ? tmp[0] : tmp).split(" ");
-        if (token.length < 2 || token[0] !== "Bearer") {
-            res.status(401);
-            res.send({message:"invalid bearer token",success:false});
-        } else {
-            try {
-                await verifyToken(token[1]);
-                res.status(200);
-                res.send({message:"ok",success:true});
-            } catch (_) {
-                res.status(401);
-                res.send({message:"failed to verify token",success:false});
-            }
-        }
-    } catch (e: any) {
-        logger.log("ERROR", "POST /token/confirm", e);
-        res.status(500);
-        res.send({message:"internal server error",success:false});
-    }
+    res.status(200);
+    res.send({message:"ok",success:true});
 });
 
 app.post("/api/token/revoke", async function (req, res) {
-    try {
-        const tmp = req.headers.Authorization ?? req.headers.authorization ?? "";
-        const token = (Array.isArray(tmp) ? tmp[0] : tmp).split(" ");
-        if (token.length < 2 || token[0] !== "Bearer") {
-            res.status(401);
-            res.send({message:"invalid bearer token",success:false});
-        } else {
-            try {
-                const claims = await verifyToken(token[1]);
-                revokeToken(claims);
-                res.status(200);
-                res.send({message:"ok",success:true});
-            } catch (_) {
-                res.status(401);
-                res.send({message:"failed to verify token",success:false});
-            }
-        }
-    } catch (e: any) {
-        logger.log("ERROR", "POST /token/revoke", e);
-        res.status(500);
-        res.send({message:"internal server error",success:false});
-    }
+    revokeToken((req as any).claims);
+    res.status(200);
+    res.send({message:"ok",success:true});
 });
 
-
+app.get("/api/favourite", async function (req, res) {
+    
+});
 
 backend.listen(Number(PORT), IP);
 logger.log("INFO", "backend started");
