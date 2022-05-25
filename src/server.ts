@@ -139,7 +139,7 @@ app.post("/api/token/revoke", async function (req, res) {
         } else {
             try {
                 const claims = await verifyToken(token[1]);
-                revokeToken(claims.jti);
+                revokeToken(claims);
                 res.status(200);
                 res.send({message:"ok",success:true});
             } catch (_) {
@@ -153,6 +153,8 @@ app.post("/api/token/revoke", async function (req, res) {
         res.send({message:"internal server error",success:false});
     }
 });
+
+
 
 backend.listen(Number(PORT), IP);
 logger.log("INFO", "backend started");
