@@ -18,7 +18,7 @@ for (const lvl of levels)
     if ((lvl as string).length > level_print_length)
         level_print_length = (lvl as string).length;
 
-export default class logger {
+export default class Logger {
     public static log(level: log_level, content: string, additional?: any): void {
         if (logged_levels.includes(level)) {
             let lvl = level as string;

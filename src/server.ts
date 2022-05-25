@@ -2,7 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import http from "http";
 import knex from "knex";
 import { env } from "./config";
-import logger from "./logger";
+import Logger from "./logger";
 import bodyParser from "body-parser";
 import { nullOrEmpty } from "./common";
 import bcrypt from "bcrypt";
@@ -11,7 +11,7 @@ import { revokeToken, signToken, verifyToken } from "./jwt";
 const { PORT, IP } = env;
 
 process.on("uncaughtException", (err) => {
-    logger.log("ERROR", "An exception was left uncaught", err);
+    Logger.log("ERROR", "An exception was left uncaught", err);
 });
 
 const app = express();
@@ -41,18 +41,18 @@ const db = knex({
 const testDbConnection = async () => {
     try {
         await db.raw("SELECT 1+1 AS RESULT");
-        logger.log("DEBUG", "database connection ok");
+        Logger.log("DEBUG", "database connection ok");
     } catch (e) {
-        logger.log("FATAL", "failed to connect to the database", e);
+        Logger.log("FATAL", "failed to connect to the database", e);
     }
 };
 testDbConnection();
 
-const errorHandler = function (req: Request, res: Response, next: NextFunction) {
+const errorHandler = function (_req: Request, res: Response, next: NextFunction) {
     try {
         next();
     } catch (e: any) {
-        logger.log("ERROR", "POST /register", e);
+        Logger.log("ERROR", "POST /register", e);
         res.status(500);
         res.send({message:"internal server error",success:false});
     }
@@ -122,7 +122,7 @@ app.post("/api/login", async function (req, res) {
     }
 });
 
-app.post("/api/token/confirm", async function (req, res) {
+app.post("/api/token/confirm", async function (_req, res) {
     res.status(200);
     res.send({message:"ok",success:true});
 });
@@ -178,4 +178,4 @@ app.get("/api/comment/:movieId", async function (req, res) {
 });
 
 backend.listen(Number(PORT), IP);
-logger.log("INFO", "backend started");
+Logger.log("INFO", "backend started");
