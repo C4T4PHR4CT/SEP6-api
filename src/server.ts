@@ -6,6 +6,7 @@ import logger from "./logger";
 import bodyParser from "body-parser";
 import { nullOrEmpty } from "./common";
 import bcrypt from "bcrypt";
+import { signToken } from "./jwt";
 
 const { PORT, IP } = env;
 
@@ -74,6 +75,58 @@ app.post("/api/register", async function (req, res) {
         }
     } catch (e: any) {
         logger.log("ERROR", "POST /register", e);
+        res.status(500);
+        res.send({message:"internal server error",success:false});
+    }
+});
+
+app.post("/api/register", async function (req, res) {
+    try {
+        const user = req.body;
+        if (nullOrEmpty(user.username)) {
+            res.status(400);
+            res.send({message:"username can't be empty",success:false});
+        } else if (nullOrEmpty(user.password)) {
+            res.status(400);
+            res.send({message:"password can't be empty",success:false});
+        } else if (nullOrEmpty(user.email)) {
+            res.status(400);
+            res.send({message:"email can't be empty",success:false});
+        } else if ((await db.raw("SELECT username FROM users WHERE username = ?", [user.username]))[0].length > 0) {
+            res.status(409);
+            res.send({message:"username taken",success:false});
+        } else {
+            await db.raw("INSERT INTO users (username, password_hashed, email, favourites) VALUES (?, ?, ?, ?)", [user.username, bcrypt.hashSync(user.password, 10), user.email, "[]"]);
+            res.status(200);
+            res.send({message:"ok",success:true});
+        }
+    } catch (e: any) {
+        logger.log("ERROR", "POST /register", e);
+        res.status(500);
+        res.send({message:"internal server error",success:false});
+    }
+});
+
+app.post("/api/login", async function (req, res) {
+    try {
+        const user = req.body;
+        if (nullOrEmpty(user.username)) {
+            res.status(400);
+            res.send({message:"username can't be empty",success:false});
+        } else if (nullOrEmpty(user.password)) {
+            res.status(400);
+            res.send({message:"password can't be empty",success:false});
+        } else if (!bcrypt.compareSync(user.password, (await db.raw("SELECT password_hashed FROM users WHERE username = ?", [user.username]))[0][0]?.password_hashed ?? "")) {
+            res.status(401);
+            res.send({message:"incorrect username or password",success:false});
+        } else {
+            const dbUser = (await db.raw("SELECT username, email FROM users WHERE username = ?", [user.username]))[0].map((v: any) => {return {username: v.username, email: v.email};})[0];
+            const token = await signToken(dbUser, user.username);
+            res.status(200);
+            res.send({token, user: dbUser});
+        }
+    } catch (e: any) {
+        logger.log("ERROR", "POST /login", e);
         res.status(500);
         res.send({message:"internal server error",success:false});
     }
