@@ -6,7 +6,7 @@ import logger from "./logger";
 import bodyParser from "body-parser";
 import { nullOrEmpty } from "./common";
 import bcrypt from "bcrypt";
-import { signToken } from "./jwt";
+import { revokeToken, signToken, verifyToken } from "./jwt";
 
 const { PORT, IP } = env;
 
@@ -100,6 +100,55 @@ app.post("/api/login", async function (req, res) {
         }
     } catch (e: any) {
         logger.log("ERROR", "POST /login", e);
+        res.status(500);
+        res.send({message:"internal server error",success:false});
+    }
+});
+
+app.post("/api/token/confirm", async function (req, res) {
+    try {
+        const tmp = req.headers.Authorization ?? req.headers.authorization ?? "";
+        const token = (Array.isArray(tmp) ? tmp[0] : tmp).split(" ");
+        if (token.length < 2 || token[0] !== "Bearer") {
+            res.status(401);
+            res.send({message:"invalid bearer token",success:false});
+        } else {
+            try {
+                await verifyToken(token[1]);
+                res.status(200);
+                res.send({message:"ok",success:true});
+            } catch (_) {
+                res.status(401);
+                res.send({message:"failed to verify token",success:false});
+            }
+        }
+    } catch (e: any) {
+        logger.log("ERROR", "POST /token/confirm", e);
+        res.status(500);
+        res.send({message:"internal server error",success:false});
+    }
+});
+
+app.post("/api/token/revoke", async function (req, res) {
+    try {
+        const tmp = req.headers.Authorization ?? req.headers.authorization ?? "";
+        const token = (Array.isArray(tmp) ? tmp[0] : tmp).split(" ");
+        if (token.length < 2 || token[0] !== "Bearer") {
+            res.status(401);
+            res.send({message:"invalid bearer token",success:false});
+        } else {
+            try {
+                const claims = await verifyToken(token[1]);
+                revokeToken(claims.jti);
+                res.status(200);
+                res.send({message:"ok",success:true});
+            } catch (_) {
+                res.status(401);
+                res.send({message:"failed to verify token",success:false});
+            }
+        }
+    } catch (e: any) {
+        logger.log("ERROR", "POST /token/revoke", e);
         res.status(500);
         res.send({message:"internal server error",success:false});
     }
