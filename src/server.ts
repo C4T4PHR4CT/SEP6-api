@@ -159,5 +159,23 @@ app.delete("/api/favourite/:movieId", async function (req, res) {
     res.send({message:"ok",success:true});
 });
 
+app.post("/api/comment/:movieId", async function (req, res) {
+    const content = req.body.content;
+    if (nullOrEmpty(content)) {
+        res.status(400);
+        res.send({message:"content can't be empty",success:false});
+    } else {
+        await db.raw("INSERT INTO comments (author, content, movie_id) VALUES (?, ?, ?)", [(req as any).claims.sub, content, req.params.movieId as string]);
+        res.status(200);
+        res.send({message:"ok",success:true});
+    }
+});
+
+app.get("/api/comment/:movieId", async function (req, res) {
+    const comments = (await db.raw("SELECT author, content, UNIX_TIMESTAMP(entry_timestamp) AS da FROM comments WHERE movie_id = ?", [req.params.movieId as string]))[0].map((m: any) => {return {username: m.author, date: m.da, content: m.content};});
+    res.status(200);
+    res.send(comments);
+});
+
 backend.listen(Number(PORT), IP);
 logger.log("INFO", "backend started");
