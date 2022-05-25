@@ -52,7 +52,7 @@ app.get("/test", async function (_req, res) {
     res.send("ok");
 });
 
-app.post("/register", async function (req, res) {
+app.post("/api/register", async function (req, res) {
     try {
         const user = req.body;
         if (nullOrEmpty(user.username)) {
