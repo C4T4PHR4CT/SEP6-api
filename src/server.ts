@@ -57,25 +57,25 @@ app.post("/api/register", async function (req, res) {
         const user = req.body;
         if (nullOrEmpty(user.username)) {
             res.status(400);
-            res.send("username can't be empty");
+            res.send({message:"username can't be empty",success:false});
         } else if (nullOrEmpty(user.password)) {
             res.status(400);
-            res.send("password can't be empty");
+            res.send({message:"password can't be empty",success:false});
         } else if (nullOrEmpty(user.email)) {
             res.status(400);
-            res.send("email can't be empty");
+            res.send({message:"email can't be empty",success:false});
         } else if ((await db.raw("SELECT username FROM users WHERE username = ?", [user.username]))[0].length > 0) {
             res.status(409);
-            res.send("username taken");
+            res.send({message:"username taken",success:false});
         } else {
             await db.raw("INSERT INTO users (username, password_hashed, email, favourites) VALUES (?, ?, ?, ?)", [user.username, bcrypt.hashSync(user.password, 10), user.email, "[]"]);
             res.status(200);
-            res.send("ok");
+            res.send({message:"ok",success:true});
         }
     } catch (e: any) {
         logger.log("ERROR", "POST /register", e);
         res.status(500);
-        res.send("internal server error");
+        res.send({message:"internal server error",success:false});
     }
 });
 
