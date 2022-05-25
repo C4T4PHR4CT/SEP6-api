@@ -134,7 +134,29 @@ app.post("/api/token/revoke", async function (req, res) {
 });
 
 app.get("/api/favourite", async function (req, res) {
-    
+    const favs = (await db.raw("SELECT favourites FROM users WHERE username = ?", [(req as any).claims.sub]))[0][0].favourites;
+    res.status(200);
+    res.send(JSON.parse(favs));
+});
+
+app.post("/api/favourite/:movieId", async function (req, res) {
+    const favs = JSON.parse((await db.raw("SELECT favourites FROM users WHERE username = ?", [(req as any).claims.sub]))[0][0].favourites) as Array<string>;
+    if (!favs.includes(req.params.movieId as string)) {
+        favs.push(req.params.movieId as string);
+        await db.raw("UPDATE users SET favourites = ? WHERE username = ?", [JSON.stringify(favs) ,(req as any).claims.sub]);
+    }
+    res.status(200);
+    res.send({message:"ok",success:true});
+});
+
+app.delete("/api/favourite/:movieId", async function (req, res) {
+    const favs = JSON.parse((await db.raw("SELECT favourites FROM users WHERE username = ?", [(req as any).claims.sub]))[0][0].favourites) as Array<string>;
+    if (favs.includes(req.params.movieId as string)) {
+        favs.splice(favs.findIndex(m => m === req.params.movieId as string), 1);
+        await db.raw("UPDATE users SET favourites = ? WHERE username = ?", [JSON.stringify(favs) ,(req as any).claims.sub]);
+    }
+    res.status(200);
+    res.send({message:"ok",success:true});
 });
 
 backend.listen(Number(PORT), IP);
