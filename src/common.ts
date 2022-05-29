@@ -5,3 +5,7 @@ export function shallowStringify(object: any) {
         obj[key] = object[key].toString();
     return JSON.stringify(obj, null, 2);
 }
+
+export function nullOrEmpty(str: string) {
+    return str === undefined || str === null || str === "" || str.trim() === "";
+}
