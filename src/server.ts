@@ -7,6 +7,7 @@ import bodyParser from "body-parser";
 import { nullOrEmpty } from "./common";
 import bcrypt from "bcrypt";
 import { revokeToken, signToken, verifyToken } from "./jwt";
+import axios from "axios";
 
 const { PORT, IP } = env;
 
@@ -134,9 +135,18 @@ app.post("/api/token/revoke", async function (req, res) {
 });
 
 app.get("/api/favourite", async function (req, res) {
-    const favs = (await db.raw("SELECT favourites FROM users WHERE username = ?", [(req as any).claims.sub]))[0][0].favourites;
+    const favs = JSON.parse((await db.raw("SELECT favourites FROM users WHERE username = ?", [(req as any).claims.sub]))[0][0].favourites);
+    const movies = new Array<any>(0);
+    const promises = new Array<Promise<void>>(0);
+    for (const movieId of favs)
+        promises.push(
+            axios.get(`https://api.themoviedb.org/3/movie/${movieId}?api_key=0859f3a7791c504d30a087517505495c&language=en-US`)
+            .then(r => {movies.push(r.data)})
+            .catch(_e => {/*noop*/})
+        );
+    await Promise.all(promises);
     res.status(200);
-    res.send(JSON.parse(favs));
+    res.send(movies);
 });
 
 app.post("/api/favourite/:movieId", async function (req, res) {
