@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import { nullOrEmpty } from "./common";
 import bcrypt from "bcrypt";
 import { revokeToken, signToken, verifyToken } from "./jwt";
-
+ 
 const { PORT, IP } = env;
 
 process.on("uncaughtException", (err) => {
